@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: skybook
+          POSTGRES_USER: skybook
+          POSTGRES_PASSWORD: skybook
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U skybook"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://skybook:skybook@localhost:5432/skybook
+      DJANGO_SECRET_KEY: ci-secret-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python manage.py check
+      - run: python manage.py makemigrations --check --dry-run
+      - run: python manage.py test
+      - run: docker build -t skybook-api .
